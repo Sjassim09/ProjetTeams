@@ -26,6 +26,15 @@ void error(const char *msg) {
     exit(1);
 }
 
+int is_username_taken(const char *username) {
+    for (int i = 0; i < client_count; i++) {
+        if (strcmp(clients[i]->username, username) == 0) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 void broadcast_message(const char *message, int sender_sockfd) {
     pthread_mutex_lock(&clients_mutex);
     for (int i = 0; i < client_count; i++) {
@@ -127,6 +136,18 @@ int main(int argc, char *argv[]) {
         client->username[n] = '\0';
 
         pthread_mutex_lock(&clients_mutex);
+        if (is_username_taken(client->username)) {
+            pthread_mutex_unlock(&clients_mutex);
+            char *message = "Username already taken. Connection refused.\n";
+            send(client->sockfd, message, strlen(message), 0);
+            close(client->sockfd);
+            free(client);
+            continue;
+        } else {
+            char *message = "Username accepted. Connection established.\n";
+            send(client->sockfd, message, strlen(message), 0);
+        }
+
         if (client_count < MAX_CLIENTS) {
             clients[client_count++] = client;
             pthread_mutex_unlock(&clients_mutex);
